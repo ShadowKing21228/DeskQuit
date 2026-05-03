@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:DeskQuit.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="250" d:DesignHeight="80"
+        x:Class="DeskQuit.Views.FloatingTimerWindow"
+        x:DataType="vm:FloatingTimerViewModel"
+        Width="180" Height="60"
+        SystemDecorations="None"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        PointerPressed="OnPointerPressed">
+    
+    <Border Background="#80000000" 
+            CornerRadius="12" 
+            Padding="15,10">
+        <TextBlock Text="{Binding FormattedTime}" 
+                   Foreground="White" 
+                   FontSize="28" 
+                   FontWeight="ExtraBold"
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center"/>
+    </Border>
+</Window>

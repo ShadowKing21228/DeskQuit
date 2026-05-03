@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskQuit.ViewModels.Notifications"
+        x:Class="DeskQuit.Views.Notifications.AggressiveBlockingNotificationWindow"
+        x:DataType="vm:AggressiveBlockingNotificationViewModel"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowState="FullScreen"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        Background="#111827"
+        Title="DeskQuit">
+    
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:AggressiveBlockingNotificationViewModel/>
+    </Design.DataContext>
+    
+    <Grid>
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="16">
+            <TextBlock Text="{Binding Title}"
+                       FontSize="48"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding Body}"
+                       FontSize="26"
+                       Foreground="#F3F4F6"
+                       HorizontalAlignment="Center" />
+            <Button Content="{Binding ActionButtonText}"
+                    IsEnabled="{Binding IsActionEnabled}"
+                    Command="{Binding StartBreakCommand}"
+                    FontSize="24"
+                    Padding="22,12"
+                    HorizontalAlignment="Center"
+                    Background="#DC2626"
+                    Foreground="White" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DeskQuit.ViewModels.Notifications"
+        x:Class="DeskQuit.Views.Notifications.SoftPersistentNotificationWindow"
+        x:DataType="vm:SoftPersistentNotificationViewModel"
+        Width="380"
+        Height="170"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        SystemDecorations="None"
+        Background="#1F2937"
+        Title="DeskQuit">
+    
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:SoftPersistentNotificationViewModel/>
+    </Design.DataContext>
+    
+    <StackPanel Spacing="10" Margin="16">
+        <TextBlock Text="{Binding Title}"
+                   FontSize="17"
+                   FontWeight="SemiBold"
+                   Foreground="White" />
+        <TextBlock Text="{Binding Body}"
+                   TextWrapping="Wrap"
+                   Foreground="White" />
+
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Content="{Binding SnoozeButtonText}"
+                    Background="#334155"
+                    Foreground="White"
+                    Command="{Binding SnoozeCommand}" />
+            <Button Content="{Binding DoneButtonText}"
+                    Background="#16A34A"
+                    Foreground="White"
+                    Command="{Binding DoneCommand}" />
+        </StackPanel>
+    </StackPanel>
+</Window>
