@@ -1,0 +1,58 @@
+name: Build and Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build Windows x64
+    runs-on: windows-latest
+
+    env:
+      # Path to your main project file relative to the repository root
+      PROJECT_PATH: 'DeskQuit/DeskQuit.csproj'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Extract Version
+      id: extract_version
+      run: |
+        $tag = "${{ github.event.release.tag_name }}"
+        # Remove 'v' prefix if it exists (e.g., v1.0.0 -> 1.0.0)
+        if ($tag.StartsWith("v")) { $tag = $tag.Substring(1) }
+        echo "VERSION=$tag" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+
+    - name: Publish App (Single File, Self-Contained)
+      run: |
+        dotnet publish ${{ env.PROJECT_PATH }} `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:PublishTrimmed=true `
+          -o publish_output
+
+    - name: Create ZIP Archive
+      run: |
+        $version = "${{ steps.extract_version.outputs.VERSION }}"
+        $archiveName = "DeskQuit-win-x64-v$version.zip"
+        Compress-Archive -Path publish_output\* -DestinationPath $archiveName
+        echo "ARCHIVE_NAME=$archiveName" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        files: DeskQuit-win-x64-*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

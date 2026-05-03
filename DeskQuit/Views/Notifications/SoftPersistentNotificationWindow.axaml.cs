@@ -1,6 +1,6 @@
 using System;
-using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 using DeskQuit.ViewModels.Notifications;
 
 namespace DeskQuit.Views.Notifications;
@@ -10,54 +10,46 @@ public partial class SoftPersistentNotificationWindow : Window
     public event Action? DoneClicked;
     public event Action<TimeSpan>? SnoozeClicked;
 
-    private readonly SoftPersistentNotificationViewModel _viewModel;
+    public SoftPersistentNotificationWindow()
+    {
+        InitializeComponent();
+    }
 
     public SoftPersistentNotificationWindow(string title, string body)
     {
-        _viewModel = new SoftPersistentNotificationViewModel(title, body);
-        _viewModel.DoneRequested += () =>
+        InitializeComponent();
+        
+        var vm = new SoftPersistentNotificationViewModel(title, body);
+        vm.DoneRequested += () => 
         {
             DoneClicked?.Invoke();
             Close();
         };
-        _viewModel.SnoozeRequested += snooze =>
+        vm.SnoozeRequested += (time) => 
         {
-            SnoozeClicked?.Invoke(snooze);
+            SnoozeClicked?.Invoke(time);
             Close();
         };
-
-        DataContext = _viewModel;
         
-        InitializeComponent();
-        Opened += (_, _) => PositionWindow();
+        DataContext = vm;
+        SetPosition();
     }
 
-    protected override void OnClosing(WindowClosingEventArgs e)
+    private void SetPosition()
     {
-        if (!_viewModel.CanClose)
+        var screen = Screens.Primary;
+        if (screen != null)
         {
-            e.Cancel = true;
-            return;
+            var workingArea = screen.WorkingArea;
+            var windowWidth = 380;
+            var windowHeight = 170;
+            // 20px padding from the bottom right corner
+            Position = new Avalonia.PixelPoint(workingArea.Right - windowWidth - 20, workingArea.Bottom - windowHeight - 20);
         }
-
-        base.OnClosing(e);
     }
 
-    protected override void OnClosed(EventArgs e)
+    private void InitializeComponent()
     {
-        _viewModel.Dispose();
-        base.OnClosed(e);
-    }
-
-    private void PositionWindow()
-    {
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-        if (screen is null)
-            return;
-
-        var area = screen.WorkingArea;
-        var x = area.X + area.Width - (int)Width - 20;
-        var y = area.Y + 20;
-        Position = new PixelPoint(x, y);
+        AvaloniaXamlLoader.Load(this);
     }
 }

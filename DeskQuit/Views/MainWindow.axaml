@@ -1,35 +1,115 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DeskQuit.ViewModels"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="250"
         x:Class="DeskQuit.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="DeskQuit"
-        Width="500"
-        Height="600">
+        Width="600" Height="750"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="#111827"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
-        <TextBlock Text="{Binding Greeting}" 
-                   HorizontalAlignment="Center" 
-                   FontSize="24"
-                   FontWeight="SemiBold"/>
-        
-        <Button Content="Показать/скрыть таймер" 
-                Command="{Binding ToggleFloatingTimerCommand}" 
-                HorizontalAlignment="Center"
-                Padding="15,10"
-                CornerRadius="8"
-                Background="#2563EB"
-                Foreground="White"/>
-    </StackPanel>
+    <Panel>
+        <!-- Custom Title Bar -->
+        <Border Height="40" Background="Transparent" VerticalAlignment="Top">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                <TextBlock Text="DeskQuit" VerticalAlignment="Center" HorizontalAlignment="Center" Grid.Column="0" Foreground="White" FontSize="16"/>
+                <!-- This empty border is for dragging the window -->
+                <Border Background="Transparent" Grid.Column="0" PointerPressed="OnTitleBarPointerPressed"/>
+            </Grid>
+        </Border>
 
+        <Grid Margin="0,40,0,0" RowDefinitions="Auto, *">
+            
+            <TabControl Grid.Row="1" Background="#111827">
+                <TabItem Header="{Binding RemindersTabHeader}">
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding Reminders}" Margin="10">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:ReminderSettingViewModel">
+                                    <Border Background="#1F2937" CornerRadius="8" Padding="15" Margin="0,0,0,10">
+                                        <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto" ColumnDefinitions="*,Auto">
+                                            
+                                            <ToggleSwitch Grid.Row="0" Grid.Column="1" IsChecked="{Binding IsEnabled}" 
+                                                        HorizontalAlignment="Right"/>
+                                            
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Title}" FontWeight="Bold" FontSize="18" Foreground="White" VerticalAlignment="Center"/>
+                                            
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding Description}" TextWrapping="Wrap" FontSize="14" Foreground="#D1D5DB" Margin="0,5,0,0"/>
+                                            
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding Source}" TextWrapping="Wrap" FontSize="12" Foreground="#9CA3AF" FontStyle="Italic" Margin="0,10,0,0"/>
+
+                                            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Vertical" Spacing="15" Margin="0,15,0,0">
+                                                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                    <TextBlock Text="Интервал (мин):" VerticalAlignment="Center" Foreground="White" Width="130"/>
+                                                    <NumericUpDown Value="{Binding IntervalInMinutes}" Minimum="1" Maximum="180" Width="130" FormatString="0"/>
+                                                    <TextBlock Text="Вы отклонились от реком. интервала" 
+                                                            Foreground="#F87171" 
+                                                            IsVisible="{Binding !IsIntervalDefault}"
+                                                            VerticalAlignment="Center"
+                                                            TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                
+                                                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                    <TextBlock Text="Стиль уведомления:" VerticalAlignment="Center" Foreground="White" Width="130"/>
+                                                    <ComboBox ItemsSource="{Binding AvailableStyles}" 
+                                                              SelectedItem="{Binding SelectedStyleOption}" 
+                                                              DisplayMemberBinding="{Binding DisplayName}"
+                                                              Width="250"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </TabItem>
+                
+                <TabItem Header="{Binding SettingsTabHeader}">
+                    <ScrollViewer>
+                        <StackPanel Margin="10" Spacing="15">
+                            <Border Background="#1F2937" CornerRadius="8" Padding="15">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="Глобальные настройки" FontWeight="Bold" FontSize="18" Foreground="White"/>
+                                    <TextBlock Text="DeskQuit останавливает таймеры, если вы отходите от компьютера." TextWrapping="Wrap" FontSize="14" Foreground="#D1D5DB"/>
+                                    
+                                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding AfkThresholdLabel}" VerticalAlignment="Center" Foreground="White"/>
+                                        <NumericUpDown Value="{Binding AfkThresholdMinutes}" Minimum="1" Maximum="60" Width="130" FormatString="0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                
+                <TabItem Header="{Binding InfoTabHeader}">
+                    <ScrollViewer>
+                        <Border Background="#1F2937" CornerRadius="8" Padding="15" Margin="10">
+                            <TextBlock Text="{Binding InfoContent}" TextWrapping="Wrap" FontSize="14" Foreground="#D1D5DB" LineHeight="22"/>
+                        </Border>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+
+            <!-- Кнопка таймера вынесена за пределы вкладок -->
+            <Border Grid.Row="0" Background="#1F2937" Padding="10">
+                <Button Content="{Binding ToggleTimerButtonText}" 
+                        Command="{Binding ToggleFloatingTimerCommand}" 
+                        HorizontalAlignment="Right"
+                        Padding="15,8"
+                        CornerRadius="8"
+                        Background="#2563EB"
+                        Foreground="White"/>
+            </Border>
+        </Grid>
+    </Panel>
 </Window>

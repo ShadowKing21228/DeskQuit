@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -15,97 +16,89 @@ namespace DeskQuit.Services.Notification;
 public class NotificationService
 {
     private readonly DispatcherTimer _heartbeat;
-    
     private readonly List<NotificationTask> _tasks = [];
-    
     private readonly LocalizationService _localizationService = LocalizationService.Instance;
-    
     private bool _softNotificationVisible;
-    
     private bool _aggressiveNotificationVisible;
-    
     private INotificationManager? _manager;
-
-    // Порог бездействия (после которого считаем пользователя AFK и ставим таймеры на паузу)
-    // Например, 1 минута.
-    private readonly TimeSpan _idleThreshold = TimeSpan.FromSeconds(1);
-    
-    // Глобальное время работы программы (активное время за ПК)
+    private TimeSpan _idleThreshold = TimeSpan.FromMinutes(1);
     public TimeSpan TotalWorkTime { get; private set; } = TimeSpan.Zero;
-        
     public event Action<TimeSpan>? TotalTimeChanged;
 
-    
     public NotificationService()
     {
-        _heartbeat = new DispatcherTimer 
-        { 
-            Interval = TimeSpan.FromSeconds(1) 
-        };
+        _heartbeat = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _heartbeat.Tick += OnHeartbeat;
     }
 
     public void Initialize()
     {
         AppLogger.Info("Initialize", nameof(NotificationService));
-        // Выбираем менеджер в зависимости от ОС
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
             _manager = new WindowsNotificationManager();
-        }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            // Для Linux (стандарт FreeDesktop/dbus)
             _manager = new FreeDesktopNotificationManager();
-        }
         
-        // Инициализируем (это может быть async в зависимости от версии, 
-        // проверь доступность Initialize или InitializeAsync)
         _manager?.Initialize();
         Start();
     }
     
-    public async Task SendNotification(string title, string body)
+    public void SetAfkThreshold(TimeSpan threshold)
     {
-        if (_manager == null) return;
-
-        var nf = new DesktopNotifications.Notification
-        {
-            Title = title,
-            Body = body
-        };
-        AppLogger.Info("SendNotification", nameof(NotificationService));
-        await _manager.ShowNotification(nf);
+        _idleThreshold = threshold;
     }
 
     public void AddTask(NotificationTask task)
     {
-        AppLogger.Info($"AddTask. HasElapsedAction={task.IsHaveElapsedAction}", nameof(NotificationService));
-        
-        if (!task.IsHaveElapsedAction) 
+        AppLogger.Info($"AddTask. TitleKey={task.TitleKey}", nameof(NotificationService));
+        if (!task.IsHaveElapsedAction)
             AddDefaultAction(task);
-        
         _tasks.Add(task);
     }
-
-    public void AddTasks(IEnumerable<NotificationTask> tasks)
+    
+    public void RemoveTask(NotificationTask task)
     {
-        foreach (var task in tasks)
-            AddTask(task);
+        AppLogger.Info($"RemoveTask. TitleKey={task.TitleKey}", nameof(NotificationService));
+        _tasks.Remove(task);
+    }
+
+    public NotificationTask? FindTask(string? titleKey)
+    {
+        if (string.IsNullOrEmpty(titleKey)) return null;
+        return _tasks.FirstOrDefault(t => t.TitleKey == titleKey);
+    }
+
+    public void ClearTasks()
+    {
+        AppLogger.Info("Clearing all tasks", nameof(NotificationService));
+        _tasks.Clear();
     }
 
     public void Start() => _heartbeat.Start();
 
+    private void OnHeartbeat(object? sender, EventArgs e)
+    {
+        var idleTime = UserActivityService.GetIdleTime();
+        if (idleTime > _idleThreshold) return;
+
+        var second = TimeSpan.FromSeconds(1);
+        TotalWorkTime += second;
+        TotalTimeChanged?.Invoke(TotalWorkTime);
+
+        foreach (var task in _tasks)
+        {
+            task.Update(second);
+        }
+    }
+    
     private void AddDefaultAction(NotificationTask task)
     {
-        AppLogger.Info("AddDefaultAction", nameof(NotificationService));
         task.Elapsed += async notificationTask =>
         {
-            AppLogger.Info("Default action executed", nameof(NotificationService));
             await SendNotificationByStyle(notificationTask);
         };
     }
-    
+
     private Task SendNotificationByStyle(NotificationTask task)
     {
         var title = task.ResolveTitle(_localizationService);
@@ -118,29 +111,24 @@ public class NotificationService
             _ => SendNotification(title, body)
         };
     }
+    
+    public async Task SendNotification(string title, string body)
+    {
+        if (_manager == null) return;
+        var nf = new DesktopNotifications.Notification { Title = title, Body = body };
+        await _manager.ShowNotification(nf);
+    }
 
     private async Task ShowSoftPersistentNotification(NotificationTask task, string title, string body)
     {
-        if (_softNotificationVisible)
-            return;
-
+        if (_softNotificationVisible) return;
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            if (_softNotificationVisible)
-                return;
-
+            if (_softNotificationVisible) return;
             _softNotificationVisible = true;
             var window = new SoftPersistentNotificationWindow(title, body);
-            window.DoneClicked += () =>
-            {
-                task.TimeLeft = task.Interval;
-                _softNotificationVisible = false;
-            };
-            window.SnoozeClicked += snooze =>
-            {
-                task.TimeLeft = snooze;
-                _softNotificationVisible = false;
-            };
+            window.DoneClicked += () => { task.TimeLeft = task.Interval; _softNotificationVisible = false; };
+            window.SnoozeClicked += snooze => { task.TimeLeft = snooze; _softNotificationVisible = false; };
             window.Closed += (_, _) => _softNotificationVisible = false;
             window.Show();
         });
@@ -148,49 +136,15 @@ public class NotificationService
 
     private async Task ShowAggressiveBlockingNotification(NotificationTask task, string title, string body)
     {
-        if (_aggressiveNotificationVisible)
-            return;
-
+        if (_aggressiveNotificationVisible) return;
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            if (_aggressiveNotificationVisible)
-                return;
-
+            if (_aggressiveNotificationVisible) return;
             _aggressiveNotificationVisible = true;
             var window = new AggressiveBlockingNotificationWindow(title, body);
-            window.BreakStarted += () =>
-            {
-                task.TimeLeft = task.Interval;
-                _aggressiveNotificationVisible = false;
-            };
+            window.BreakStarted += () => { task.TimeLeft = task.Interval; _aggressiveNotificationVisible = false; };
             window.Closed += (_, _) => _aggressiveNotificationVisible = false;
             window.Show();
         });
-    }
-
-    private void OnHeartbeat(object? sender, EventArgs e)
-    {
-        // Проверяем время бездействия (AFK)
-        var idleTime = UserActivityService.GetIdleTime();
-        
-        // Если пользователь бездействует дольше порога (например, отошел от ПК), 
-        // мы приостанавливаем отсчет времени.
-        if (idleTime > _idleThreshold)
-        {
-            // Пользователь в AFK. Не обновляем задачи и общее время.
-            return;
-        }
-
-        var second = TimeSpan.FromSeconds(1);
-        
-        // 1. Обновляем общее время
-        TotalWorkTime += second;
-        TotalTimeChanged?.Invoke(TotalWorkTime);
-
-        // 2. Обновляем все независимые задачи
-        foreach (var task in _tasks)
-        {
-            task.Update(second);
-        }
     }
 }
