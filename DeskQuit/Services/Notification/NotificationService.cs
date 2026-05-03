@@ -16,13 +16,21 @@ namespace DeskQuit.Services.Notification;
 public class NotificationService
 {
     private readonly DispatcherTimer _heartbeat;
+    
     private readonly List<NotificationTask> _tasks = [];
+    
     private readonly LocalizationService _localizationService = LocalizationService.Instance;
+    
     private bool _softNotificationVisible;
+    
     private bool _aggressiveNotificationVisible;
+    
     private INotificationManager? _manager;
+    
     private TimeSpan _idleThreshold = TimeSpan.FromMinutes(1);
+    
     public TimeSpan TotalWorkTime { get; private set; } = TimeSpan.Zero;
+    
     public event Action<TimeSpan>? TotalTimeChanged;
 
     public NotificationService()
