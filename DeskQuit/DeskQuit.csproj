@@ -1,14 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
-        <!-- Use multi-targeting to explicitly define both frameworks -->
-        <TargetFrameworks>net8.0;net8.0-windows10.0.17763.0</TargetFrameworks>
+        <!-- Always target Windows TFM for local development and Windows builds -->
+        <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
         <Nullable>enable</Nullable>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    </PropertyGroup>
-
-    <!-- Windows-specific properties and manifest, applied only when targeting the Windows TFM -->
-    <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows10.0.17763.0'">
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <EnableWindowsTargeting>true</EnableWindowsTargeting>
     </PropertyGroup>
@@ -30,10 +26,6 @@
         </PackageReference>
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1"/>
         <PackageReference Include="DesktopNotifications.Avalonia" Version="1.3.1" />
-    </ItemGroup>
-
-    <!-- Include Windows-specific packages only when targeting the Windows TFM -->
-    <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows10.0.17763.0'">
         <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
     </ItemGroup>
 
