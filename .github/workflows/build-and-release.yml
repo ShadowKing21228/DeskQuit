@@ -4,7 +4,6 @@ on:
   release:
     types: [published]
 
-# This is critical for softprops/action-gh-release to work
 permissions:
   contents: write
 
@@ -34,7 +33,6 @@ jobs:
       shell: pwsh
 
     - name: Publish App (Windows)
-      # Specify the framework explicitly for Windows
       run: |
         dotnet publish ${{ env.PROJECT_PATH }} `
           -c Release `
@@ -82,7 +80,6 @@ jobs:
       shell: bash
 
     - name: Publish App (Linux)
-      # Specify the framework explicitly for Linux
       run: |
         dotnet publish ${{ env.PROJECT_PATH }} \
           -c Release \

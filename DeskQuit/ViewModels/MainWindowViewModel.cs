@@ -141,37 +141,43 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var existingTask = _notificationService.FindTask(reminder.NotificationTitleKey);
 
-        if (propertyName == nameof(ReminderSettingViewModel.IsEnabled))
+        switch (propertyName)
         {
-            if (reminder.IsEnabled)
+            case nameof(ReminderSettingViewModel.IsEnabled):
             {
-                if (existingTask == null)
-                    _notificationService.AddTask(CreateTaskFromVm(reminder));
+                if (reminder.IsEnabled)
+                {
+                    if (existingTask == null)
+                        _notificationService.AddTask(CreateTaskFromVm(reminder));
+                }
+                else
+                {
+                    if (existingTask != null)
+                        _notificationService.RemoveTask(existingTask);
+                }
+                SaveConfiguration();
+                break;
             }
-            else
+            case nameof(ReminderSettingViewModel.IntervalInMinutes):
             {
                 if (existingTask != null)
-                    _notificationService.RemoveTask(existingTask);
+                {
+                    existingTask.Interval = TimeSpan.FromMinutes(reminder.IntervalInMinutes);
+                    // Reset timer to new interval to apply immediately
+                    existingTask.TimeLeft = existingTask.Interval;
+                }
+                SaveConfiguration();
+                break;
             }
-            SaveConfiguration();
-        }
-        else if (propertyName == nameof(ReminderSettingViewModel.IntervalInMinutes))
-        {
-            if (existingTask != null)
+            case nameof(ReminderSettingViewModel.SelectedStyleOption):
             {
-                existingTask.Interval = TimeSpan.FromMinutes(reminder.IntervalInMinutes);
-                // Reset timer to new interval to apply immediately
-                existingTask.TimeLeft = existingTask.Interval;
+                if (existingTask != null)
+                {
+                    existingTask.Style = reminder.StyleValue;
+                }
+                SaveConfiguration();
+                break;
             }
-            SaveConfiguration();
-        }
-        else if (propertyName == nameof(ReminderSettingViewModel.SelectedStyleOption))
-        {
-            if (existingTask != null)
-            {
-                existingTask.Style = reminder.StyleValue;
-            }
-            SaveConfiguration();
         }
     }
 
@@ -220,24 +226,25 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         foreach (var r in Reminders)
         {
-            if (r.Id == "eyes")
+            switch (r.Id)
             {
-                r.Title = _localizationService["main.reminders.eyes.title"];
-                r.Description = _localizationService["main.reminders.eyes.description"];
-                r.Source = _localizationService["main.reminders.eyes.source"];
+                case "eyes":
+                    r.Title = _localizationService["main.reminders.eyes.title"];
+                    r.Description = _localizationService["main.reminders.eyes.description"];
+                    r.Source = _localizationService["main.reminders.eyes.source"];
+                    break;
+                case "neck":
+                    r.Title = _localizationService["main.reminders.neck.title"];
+                    r.Description = _localizationService["main.reminders.neck.description"];
+                    r.Source = _localizationService["main.reminders.neck.source"];
+                    break;
+                case "back":
+                    r.Title = _localizationService["main.reminders.back.title"];
+                    r.Description = _localizationService["main.reminders.back.description"];
+                    r.Source = _localizationService["main.reminders.back.source"];
+                    break;
             }
-            else if (r.Id == "neck")
-            {
-                r.Title = _localizationService["main.reminders.neck.title"];
-                r.Description = _localizationService["main.reminders.neck.description"];
-                r.Source = _localizationService["main.reminders.neck.source"];
-            }
-            else if (r.Id == "back")
-            {
-                r.Title = _localizationService["main.reminders.back.title"];
-                r.Description = _localizationService["main.reminders.back.description"];
-                r.Source = _localizationService["main.reminders.back.source"];
-            }
+
             r.UpdateLocalizedStyles();
         }
     }
