@@ -83,6 +83,7 @@ dotnet run
 | "Как работать с БД миграциями?" | → [LOCAL_DEV.md](./LOCAL_DEV.md) → Работа с миграциями |
 | "Как настроить Nginx?" | → [DEPLOYMENT.md](./DEPLOYMENT.md) → Проксирование через Nginx |
 | "Как настроить HTTPS?" | → [HTTPS.md](./HTTPS.md) → **Рекомендуется: Nginx + Let's Encrypt** |
+| "Слишком много логов?" | → [LOGGING.md](./LOGGING.md) → Отключить verbose логирование |
 | "Как сделать резервную копию?" | → [DEPLOYMENT.md](./DEPLOYMENT.md) → Резервная копия БД |
 | "Docker команды?" | → [QUICK_START.md](./QUICK_START.md) → Частые команды |
 | "Как отладить приложение?" | → [LOCAL_DEV.md](./LOCAL_DEV.md) → Debug режим в IDE |

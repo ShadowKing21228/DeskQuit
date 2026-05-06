@@ -58,3 +58,18 @@ public class UserDailyReminderStatsDto
     [Required]
     public int? NotificationsCount { get; set; }
 }
+
+public class UserAllTimeStatsDto
+{
+    public long ActiveSeconds { get; set; }
+    public long AfkSeconds { get; set; }
+    public long TotalSeconds { get; set; }
+    public int DaysTracked { get; set; }
+    public int NotificationsTotal { get; set; }
+    public int NotificationsCustom { get; set; }
+    public int ReminderNotificationsTotal { get; set; }
+    public int DistinctReminders { get; set; }
+    public DateOnly? FirstStatDate { get; set; }
+    public DateOnly? LastStatDate { get; set; }
+}
+

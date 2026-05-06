@@ -64,34 +64,78 @@ public class UserStatsController : ControllerBase
     {
         var userId = GetUserId();
 
-        foreach (var dto in statsDtos)
+        var aggregatedByDate = statsDtos
+            .GroupBy(dto => dto.StatDate!.Value)
+            .Select(group => new
+            {
+                StatDate = group.Key,
+                ActiveSeconds = group.Sum(x => x.ActiveSeconds!.Value),
+                AfkSeconds = group.Sum(x => x.AfkSeconds!.Value),
+                NotificationsTotal = group.Sum(x => x.NotificationsTotal!.Value),
+                NotificationsCustom = group.Sum(x => x.NotificationsCustom!.Value)
+            });
+
+        foreach (var item in aggregatedByDate)
         {
             var existingStat = await _context.UserDailyStats
-                .FirstOrDefaultAsync(s => s.UserId == userId && s.StatDate == dto.StatDate!.Value);
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.StatDate == item.StatDate);
 
             if (existingStat != null)
             {
-                existingStat.ActiveSeconds = dto.ActiveSeconds!.Value;
-                existingStat.AfkSeconds = dto.AfkSeconds!.Value;
-                existingStat.NotificationsTotal = dto.NotificationsTotal!.Value;
-                existingStat.NotificationsCustom = dto.NotificationsCustom!.Value;
+                existingStat.ActiveSeconds += item.ActiveSeconds;
+                existingStat.AfkSeconds += item.AfkSeconds;
+                existingStat.NotificationsTotal += item.NotificationsTotal;
+                existingStat.NotificationsCustom += item.NotificationsCustom;
             }
             else
             {
                 _context.UserDailyStats.Add(new UserDailyStats
                 {
                     UserId = userId,
-                    StatDate = dto.StatDate!.Value,
-                    ActiveSeconds = dto.ActiveSeconds!.Value,
-                    AfkSeconds = dto.AfkSeconds!.Value,
-                    NotificationsTotal = dto.NotificationsTotal!.Value,
-                    NotificationsCustom = dto.NotificationsCustom!.Value
+                    StatDate = item.StatDate,
+                    ActiveSeconds = item.ActiveSeconds,
+                    AfkSeconds = item.AfkSeconds,
+                    NotificationsTotal = item.NotificationsTotal,
+                    NotificationsCustom = item.NotificationsCustom
                 });
             }
         }
 
         await _context.SaveChangesAsync();
         return Ok();
+    }
+
+    [HttpGet("all-time")]
+    public async Task<ActionResult<UserAllTimeStatsDto>> GetAllTimeStats()
+    {
+        var userId = GetUserId();
+
+        var dailyStatsQuery = _context.UserDailyStats.Where(s => s.UserId == userId);
+        var reminderStatsQuery = _context.UserDailyReminderStats.Where(s => s.UserId == userId);
+
+        var activeSeconds = await dailyStatsQuery.SumAsync(s => (long?)s.ActiveSeconds) ?? 0;
+        var afkSeconds = await dailyStatsQuery.SumAsync(s => (long?)s.AfkSeconds) ?? 0;
+        var notificationsTotal = await dailyStatsQuery.SumAsync(s => (int?)s.NotificationsTotal) ?? 0;
+        var notificationsCustom = await dailyStatsQuery.SumAsync(s => (int?)s.NotificationsCustom) ?? 0;
+        var daysTracked = await dailyStatsQuery.CountAsync();
+        var firstStatDate = await dailyStatsQuery.MinAsync(s => (DateOnly?)s.StatDate);
+        var lastStatDate = await dailyStatsQuery.MaxAsync(s => (DateOnly?)s.StatDate);
+        var reminderNotificationsTotal = await reminderStatsQuery.SumAsync(s => (int?)s.NotificationsCount) ?? 0;
+        var distinctReminders = await reminderStatsQuery.Select(s => s.ReminderId).Distinct().CountAsync();
+
+        return Ok(new UserAllTimeStatsDto
+        {
+            ActiveSeconds = activeSeconds,
+            AfkSeconds = afkSeconds,
+            TotalSeconds = activeSeconds + afkSeconds,
+            DaysTracked = daysTracked,
+            NotificationsTotal = notificationsTotal,
+            NotificationsCustom = notificationsCustom,
+            ReminderNotificationsTotal = reminderNotificationsTotal,
+            DistinctReminders = distinctReminders,
+            FirstStatDate = firstStatDate,
+            LastStatDate = lastStatDate
+        });
     }
 
 
@@ -131,23 +175,32 @@ public class UserStatsController : ControllerBase
     {
         var userId = GetUserId();
 
-        foreach (var dto in statsDtos)
+        var aggregatedByDateAndReminder = statsDtos
+            .GroupBy(dto => new { StatDate = dto.StatDate!.Value, dto.ReminderId })
+            .Select(group => new
+            {
+                group.Key.StatDate,
+                group.Key.ReminderId,
+                NotificationsCount = group.Sum(x => x.NotificationsCount!.Value)
+            });
+
+        foreach (var item in aggregatedByDateAndReminder)
         {
             var existingStat = await _context.UserDailyReminderStats
-                .FirstOrDefaultAsync(s => s.UserId == userId && s.StatDate == dto.StatDate!.Value && s.ReminderId == dto.ReminderId);
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.StatDate == item.StatDate && s.ReminderId == item.ReminderId);
 
             if (existingStat != null)
             {
-                existingStat.NotificationsCount = dto.NotificationsCount!.Value;
+                existingStat.NotificationsCount += item.NotificationsCount;
             }
             else
             {
                 _context.UserDailyReminderStats.Add(new UserDailyReminderStats
                 {
                     UserId = userId,
-                    StatDate = dto.StatDate!.Value,
-                    ReminderId = dto.ReminderId,
-                    NotificationsCount = dto.NotificationsCount!.Value
+                    StatDate = item.StatDate,
+                    ReminderId = item.ReminderId,
+                    NotificationsCount = item.NotificationsCount
                 });
             }
         }
