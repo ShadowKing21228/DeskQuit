@@ -29,6 +29,13 @@
   - Тестирование API (curl, REST Client, Postman)
   - IDE-специфичные настройки
 
+### Безопасность и HTTPS
+- **[HTTPS.md](./HTTPS.md)** - Настройка HTTPS на продакшене
+  - Nginx + Let's Encrypt (рекомендуется)
+  - Самоподписанные сертификаты
+  - Kestrel с SSL
+  - Traefik автоматизация
+
 ### Основная информация
 - **[README.md](./README.md)** - Основной README
   - Описание проекта
@@ -75,6 +82,7 @@ dotnet run
 | "Какие API endpoints?" | → [README.md](./README.md) |
 | "Как работать с БД миграциями?" | → [LOCAL_DEV.md](./LOCAL_DEV.md) → Работа с миграциями |
 | "Как настроить Nginx?" | → [DEPLOYMENT.md](./DEPLOYMENT.md) → Проксирование через Nginx |
+| "Как настроить HTTPS?" | → [HTTPS.md](./HTTPS.md) → **Рекомендуется: Nginx + Let's Encrypt** |
 | "Как сделать резервную копию?" | → [DEPLOYMENT.md](./DEPLOYMENT.md) → Резервная копия БД |
 | "Docker команды?" | → [QUICK_START.md](./QUICK_START.md) → Частые команды |
 | "Как отладить приложение?" | → [LOCAL_DEV.md](./LOCAL_DEV.md) → Debug режим в IDE |

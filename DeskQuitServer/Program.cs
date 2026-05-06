@@ -54,9 +54,13 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    // Don't enforce HTTPS in development
 }
-
-app.UseHttpsRedirection();
+else
+{
+    // In production, enforce HTTPS redirect (Nginx/reverse proxy handles SSL)
+    app.UseHttpsRedirection();
+}
 
 // Use Authentication and Authorization
 app.UseAuthentication();

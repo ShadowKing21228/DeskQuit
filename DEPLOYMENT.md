@@ -187,7 +187,7 @@ sudo apt install nginx -y
 sudo nano /etc/nginx/sites-available/deskquitserver
 ```
 
-Вставить:
+Вставить (базовый HTTP конфиг):
 
 ```nginx
 server {
@@ -211,6 +211,8 @@ sudo ln -s /etc/nginx/sites-available/deskquitserver /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
+
+**Для HTTPS (рекомендуется):** см. [HTTPS.md](./HTTPS.md)
 
 ## Проблемы и решения
 
