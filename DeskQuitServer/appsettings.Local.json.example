@@ -1,5 +1,8 @@
 {
   "ConnectionStrings": {
     "DefaultConnection": "Host=localhost;Port=5432;Database=your_db;Username=your_user;Password=your_password"
+  },
+  "JwtSettings": {
+    "Key": "ReplaceThisWithALongAndSecureRandomStringInYourLocalFile"
   }
 }

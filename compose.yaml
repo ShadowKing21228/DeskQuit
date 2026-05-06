@@ -6,6 +6,8 @@
       dockerfile: DeskQuitServer/Dockerfile
     environment:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    ports:
+      - "8080:8080"
     depends_on:
       - db
 
@@ -18,7 +20,7 @@
     ports:
       - "5432:5432"
     volumes:
-      - ./DeskQuitServer/data/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./DeskQuitServer/Data/init.sql:/docker-entrypoint-initdb.d/init.sql
       - pgdata:/var/lib/postgresql/data
 
 volumes:
