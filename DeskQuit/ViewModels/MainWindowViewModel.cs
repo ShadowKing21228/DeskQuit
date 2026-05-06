@@ -303,6 +303,9 @@ public partial class MainWindowViewModel : ViewModelBase
         _timerHeight = globalConfig.TimerHeight > 0 ? globalConfig.TimerHeight : 60;
         OnPropertyChanged(nameof(TimerHeight));
 
+        // Загружаем статистику после установления BaseAddress
+        _ = AccountViewModel.RefreshTotalStatsAsync();
+
         var savedConfigs = globalConfig.Reminders;
 
         var eyesReminder = CreateReminderVM(

@@ -193,24 +193,57 @@
                                     </Grid>
 
                                     <Border Background="#374151" CornerRadius="8" Padding="15">
-                                        <StackPanel Spacing="15">
-                                            <TextBlock Text="{Binding AccountViewModel.StatsHeader}" FontWeight="Bold" FontSize="16" Foreground="White" Margin="0,0,0,5"/>
-                                            
-                                            <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto" Margin="0,5">
-                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding AccountViewModel.ActiveTimeText}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
-                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AccountViewModel.CurrentSessionActiveTime}" FontWeight="SemiBold" Foreground="White" FontSize="15" Margin="0,0,0,10"/>
+                                        <StackPanel Spacing="20">
+                                            <!-- Текущая сессия -->
+                                            <StackPanel Spacing="15">
+                                                <TextBlock Text="{Binding AccountViewModel.StatsHeader}" FontWeight="Bold" FontSize="16" Foreground="White" Margin="0,0,0,5"/>
                                                 
-                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding AccountViewModel.AfkTimeText}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
-                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding AccountViewModel.CurrentSessionAfkTime}" FontWeight="SemiBold" Foreground="White" FontSize="15" Margin="0,0,0,10"/>
+                                                <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto" Margin="0,5">
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding AccountViewModel.ActiveTimeText}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AccountViewModel.CurrentSessionActiveTime}" FontWeight="SemiBold" Foreground="White" FontSize="15" Margin="0,0,0,10"/>
+                                                    
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding AccountViewModel.AfkTimeText}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding AccountViewModel.CurrentSessionAfkTime}" FontWeight="SemiBold" Foreground="White" FontSize="15" Margin="0,0,0,10"/>
 
-                                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding AccountViewModel.NotifsFiredText}" Foreground="#D1D5DB" FontSize="15"/>
-                                                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
-                                                    <TextBlock Text="{Binding AccountViewModel.CurrentSessionNotificationsFiredTotal}" FontWeight="SemiBold" Foreground="White" FontSize="15"/>
-                                                    <TextBlock Text=" (" Foreground="#D1D5DB" FontSize="15"/>
-                                                    <TextBlock Text="{Binding AccountViewModel.CurrentSessionNotificationsFiredCustom}" FontWeight="SemiBold" Foreground="White" FontSize="15"/>
-                                                    <TextBlock Text=" custom)" Foreground="#D1D5DB" FontSize="15"/>
-                                                </StackPanel>
-                                            </Grid>
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding AccountViewModel.NotifsFiredText}" Foreground="#D1D5DB" FontSize="15"/>
+                                                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
+                                                        <TextBlock Text="{Binding AccountViewModel.CurrentSessionNotificationsFiredTotal}" FontWeight="SemiBold" Foreground="White" FontSize="15"/>
+                                                        <TextBlock Text=" (" Foreground="#D1D5DB" FontSize="15"/>
+                                                        <TextBlock Text="{Binding AccountViewModel.CurrentSessionNotificationsFiredCustom}" FontWeight="SemiBold" Foreground="White" FontSize="15"/>
+                                                        <TextBlock Text=" custom)" Foreground="#D1D5DB" FontSize="15"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <!-- Разделитель -->
+                                            <Separator Background="#4B5563" Margin="0,10"/>
+
+                                            <!-- В целом -->
+                                            <StackPanel Spacing="15">
+                                                <TextBlock Text="{Binding AccountViewModel.TotalStatsHeader}" FontWeight="Bold" FontSize="16" Foreground="White" Margin="0,0,0,5"/>
+                                                
+                                                <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto, Auto" Margin="0,5">
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding AccountViewModel.ActiveTimeText}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AccountViewModel.TotalActiveTime}" FontWeight="SemiBold" Foreground="White" FontSize="15" Margin="0,0,0,10"/>
+                                                    
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding AccountViewModel.AfkTimeText}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding AccountViewModel.TotalAfkTime}" FontWeight="SemiBold" Foreground="White" FontSize="15" Margin="0,0,0,10"/>
+
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding AccountViewModel.NotifsFiredText}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
+                                                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right" Margin="0,0,0,10">
+                                                        <TextBlock Text="{Binding AccountViewModel.TotalNotificationsFiredTotal}" FontWeight="SemiBold" Foreground="White" FontSize="15"/>
+                                                        <TextBlock Text=" (" Foreground="#D1D5DB" FontSize="15"/>
+                                                        <TextBlock Text="{Binding AccountViewModel.TotalNotificationsFiredCustom}" FontWeight="SemiBold" Foreground="White" FontSize="15"/>
+                                                        <TextBlock Text=" custom)" Foreground="#D1D5DB" FontSize="15"/>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding AccountViewModel.DaysTrackedLabel}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
+                                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding AccountViewModel.TotalDaysTracked}" FontWeight="SemiBold" Foreground="White" FontSize="15" Margin="0,0,0,10"/>
+
+                                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding AccountViewModel.DateRangeLabel}" Foreground="#D1D5DB" FontSize="15"/>
+                                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding AccountViewModel.TotalDateRange}" FontWeight="SemiBold" Foreground="White" FontSize="15"/>
+                                                </Grid>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>

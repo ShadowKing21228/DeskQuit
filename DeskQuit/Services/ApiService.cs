@@ -226,6 +226,78 @@ public class ApiService
         }
     }
 
+    public async Task<AllTimeStatsResponse?> GetAllTimeStatsAsync()
+    {
+        AppLogger.Info($"GetAllTimeStatsAsync called. IsAuthenticated={IsAuthenticated}, BaseAddress={_httpClient.BaseAddress}", nameof(ApiService));
+        
+        if (!IsAuthenticated)
+        {
+            AppLogger.Warning("GetAllTimeStatsAsync called but not authenticated", nameof(ApiService));
+            return null;
+        }
+
+        try
+        {
+            AppLogger.Info("GetAllTimeStatsAsync: starting request to userstats/all-time", nameof(ApiService));
+            AppLogger.Info($"Authorization header present: {_httpClient.DefaultRequestHeaders.Authorization != null}", nameof(ApiService));
+            
+            var response = await _httpClient.GetAsync("userstats/all-time");
+            AppLogger.Info($"GetAllTimeStats response code: {response.StatusCode}", nameof(ApiService));
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                AppLogger.Info($"GetAllTimeStats response body: {json}", nameof(ApiService));
+                
+                var result = JsonSerializer.Deserialize<AllTimeStatsResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (result != null)
+                {
+                    AppLogger.Info($"Parsed all-time stats: active={result.ActiveSeconds}s, afk={result.AfkSeconds}s, days={result.DaysTracked}, notifs={result.NotificationsTotal}", nameof(ApiService));
+                    return result;
+                }
+                else
+                {
+                    AppLogger.Warning("Failed to parse AllTimeStatsResponse (null result)", nameof(ApiService));
+                }
+            }
+            else
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                AppLogger.Warning($"Failed to get all-time stats: {response.StatusCode} - {errorBody}", nameof(ApiService));
+            }
+            return null;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error($"GetAllTimeStats error: {ex.Message}", nameof(ApiService));
+            return null;
+        }
+    }
+
+    public async Task<(long activeSeconds, long afkSeconds, int notifsTotal, int notifsCustom)?> GetTotalStatsAsync()
+    {
+        var stats = await GetAllTimeStatsAsync();
+        if (stats != null)
+        {
+            return (stats.ActiveSeconds, stats.AfkSeconds, stats.NotificationsTotal, stats.NotificationsCustom);
+        }
+        return null;
+    }
+
+    public class AllTimeStatsResponse
+    {
+        public long ActiveSeconds { get; set; }
+        public long AfkSeconds { get; set; }
+        public long TotalSeconds { get; set; }
+        public int DaysTracked { get; set; }
+        public int NotificationsTotal { get; set; }
+        public int NotificationsCustom { get; set; }
+        public int ReminderNotificationsTotal { get; set; }
+        public int DistinctReminders { get; set; }
+        public string? FirstStatDate { get; set; }
+        public string? LastStatDate { get; set; }
+    }
+
     private class AuthResponse
     {
         public string? Token { get; set; }

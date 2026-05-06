@@ -54,6 +54,9 @@ public sealed class LocalizationService
         ["account.stats.active_time"] = ("Активное время:", "Active time:"),
         ["account.stats.afk_time"] = ("Время бездействия (AFK):", "AFK time:"),
         ["account.stats.notifs_fired"] = ("Сработало уведомлений:", "Notifications fired:"),
+        ["account.stats.total_header"] = ("Статистика (в целом)", "Statistics (overall)"),
+        ["account.stats.days_tracked"] = ("Дней отслеживания:", "Days tracked:"),
+        ["account.stats.date_range"] = ("Период:", "Period:"),
 
         ["style.default"] = ("Системное уведомление", "System Notification"),
         ["style.soft"] = ("Всплывающее окно DeskQuit", "DeskQuit Popup Window"),

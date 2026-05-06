@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using DeskQuit.Services;
@@ -48,10 +49,11 @@ public partial class App : Application
             {
                 DataContext = _mainWindowViewModel,
             };
-            desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            ApplyLocalizationToTrayMenu();
+             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+             ApplyLocalizationToTrayMenu();
 
-            desktop.ShutdownRequested += OnShutdownRequested;
+             AppLogger.Info("Subscribing to ShutdownRequested event", nameof(App));
+             desktop.ShutdownRequested += OnShutdownRequested;
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -59,11 +61,57 @@ public partial class App : Application
 
     private async void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
-        if (_notificationService != null && _apiService != null && _mainWindowViewModel != null && _mainWindowViewModel.AccountViewModel.IsAuthenticated)
+        AppLogger.Info("OnShutdownRequested called", nameof(App));
+        
+        if (_notificationService == null)
         {
-            var (activeSeconds, afkSeconds, notifsTotal, notifsCustom) = _notificationService.GetAndResetStats();
-            var dateStr = DateTime.Today.ToString("yyyy-MM-dd");
-            await _apiService.SendDailyStatsAsync(dateStr, activeSeconds, afkSeconds, notifsTotal, notifsCustom);
+            AppLogger.Warning("NotificationService is null", nameof(App));
+            return;
+        }
+        
+        if (_apiService == null)
+        {
+            AppLogger.Warning("ApiService is null", nameof(App));
+            return;
+        }
+        
+        if (_mainWindowViewModel == null)
+        {
+            AppLogger.Warning("MainWindowViewModel is null", nameof(App));
+            return;
+        }
+        
+        AppLogger.Info($"IsAuthenticated: {_mainWindowViewModel.AccountViewModel.IsAuthenticated}", nameof(App));
+        
+        if (_mainWindowViewModel.AccountViewModel.IsAuthenticated)
+        {
+            try
+            {
+                var (activeSeconds, afkSeconds, notifsTotal, notifsCustom) = _notificationService.GetAndResetStats();
+                var dateStr = DateTime.Today.ToString("yyyy-MM-dd");
+                AppLogger.Info($"Sending daily stats: active={activeSeconds}s, afk={afkSeconds}s, total_notifs={notifsTotal}, custom_notifs={notifsCustom}", nameof(App));
+                
+                e.Cancel = true;
+                var success = await _apiService.SendDailyStatsAsync(dateStr, activeSeconds, afkSeconds, notifsTotal, notifsCustom);
+                AppLogger.Info($"SendDailyStatsAsync result: {success}", nameof(App));
+                
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                {
+                    desktop.Shutdown();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error($"Error sending daily stats: {ex.Message}", nameof(App));
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                {
+                    desktop.Shutdown();
+                }
+            }
+        }
+        else
+        {
+            AppLogger.Info("User not authenticated, skipping stats send", nameof(App));
         }
     }
 
@@ -88,13 +136,43 @@ public partial class App : Application
         }
     }
 
-    private void MenuExit_Click(object? sender, EventArgs e)
-    {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            desktop.Shutdown();
-        }
-    }
+      private async void MenuExit_Click(object? sender, EventArgs e)
+      {
+          AppLogger.Info("MenuExit_Click triggered, initiating shutdown", nameof(App));
+          AppLogger.Info($"NotificationService: {_notificationService != null}, ApiService: {_apiService != null}, MainViewModel: {_mainWindowViewModel != null}", nameof(App));
+          
+          // Отправляем статистику перед выходом
+          if (_notificationService != null && _apiService != null && _mainWindowViewModel != null && _mainWindowViewModel.AccountViewModel.IsAuthenticated)
+          {
+              try
+              {
+                  AppLogger.Info("Starting to send stats", nameof(App));
+                  var (activeSeconds, afkSeconds, notifsTotal, notifsCustom) = _notificationService.GetAndResetStats();
+                  var dateStr = DateTime.Today.ToString("yyyy-MM-dd");
+                  AppLogger.Info($"Sending daily stats: active={activeSeconds}s, afk={afkSeconds}s, total_notifs={notifsTotal}, custom_notifs={notifsCustom}", nameof(App));
+                  
+                  var success = await _apiService.SendDailyStatsAsync(dateStr, activeSeconds, afkSeconds, notifsTotal, notifsCustom);
+                  AppLogger.Info($"SendDailyStatsAsync result: {success}", nameof(App));
+                  
+                  // Даём время на завершение запроса
+                  await Task.Delay(500);
+              }
+              catch (Exception ex)
+              {
+                  AppLogger.Error($"Error sending daily stats: {ex.Message}", nameof(App));
+              }
+          }
+          else
+          {
+              AppLogger.Info("Skipping stats: not authenticated or services null", nameof(App));
+          }
+          
+          AppLogger.Info("About to shutdown", nameof(App));
+          if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+          {
+              desktop.Shutdown();
+          }
+      }
 
     private void MenuLanguageRu_Click(object? sender, EventArgs e)
     {

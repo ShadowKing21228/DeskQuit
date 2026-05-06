@@ -49,6 +49,25 @@ public partial class AccountViewModel : ViewModelBase
     [ObservableProperty]
     private int _currentSessionNotificationsFiredCustom;
 
+    // Статистика в целом
+    [ObservableProperty]
+    private string _totalActiveTime = "0 ч. 0 мин.";
+    
+    [ObservableProperty]
+    private string _totalAfkTime = "0 ч. 0 мин.";
+    
+    [ObservableProperty]
+    private int _totalNotificationsFiredTotal;
+    
+    [ObservableProperty]
+    private int _totalNotificationsFiredCustom;
+    
+    [ObservableProperty]
+    private int _totalDaysTracked;
+    
+    [ObservableProperty]
+    private string _totalDateRange = string.Empty;
+
     public string LoginButtonText => _localizationService["account.login.button"];
     public string RegisterButtonText => _localizationService["account.register.button"];
     public string LogoutButtonText => _localizationService["account.logout.button"];
@@ -62,6 +81,9 @@ public partial class AccountViewModel : ViewModelBase
     public string ActiveTimeText => _localizationService["account.stats.active_time"];
     public string AfkTimeText => _localizationService["account.stats.afk_time"];
     public string NotifsFiredText => _localizationService["account.stats.notifs_fired"];
+    public string TotalStatsHeader => _localizationService["account.stats.total_header"];
+    public string DaysTrackedLabel => _localizationService["account.stats.days_tracked"];
+    public string DateRangeLabel => _localizationService["account.stats.date_range"];
 
     public AccountViewModel(ApiService apiService, ConfigService configService, NotificationService notificationService, Action onAuthStateChanged)
     {
@@ -81,6 +103,7 @@ public partial class AccountViewModel : ViewModelBase
         var config = _configService.LoadConfig();
         if (!string.IsNullOrEmpty(config.JwtToken))
         {
+            DeskQuit.Services.Logging.AppLogger.Info("Found saved JWT token in config, restoring session", nameof(AccountViewModel));
             _apiService.SetToken(config.JwtToken);
             CurrentUserEmail = config.UserEmail ?? "User";
             IsAuthenticated = true;
@@ -180,18 +203,67 @@ public partial class AccountViewModel : ViewModelBase
 
     private void HandleSuccessfulAuth(string? email, string? token)
     {
+        DeskQuit.Services.Logging.AppLogger.Info("HandleSuccessfulAuth called", nameof(AccountViewModel));
+        DeskQuit.Services.Logging.AppLogger.Info($"Token before SetToken: {(token != null ? "NOT NULL" : "NULL")}", nameof(AccountViewModel));
+        DeskQuit.Services.Logging.AppLogger.Info($"IsAuthenticated before: {_apiService.IsAuthenticated}", nameof(AccountViewModel));
+        
         IsAuthenticated = true;
         CurrentUserEmail = email ?? "User";
         EmailInput = string.Empty;
         PasswordInput = string.Empty;
         ErrorMessage = string.Empty;
 
+        DeskQuit.Services.Logging.AppLogger.Info($"IsAuthenticated after: {_apiService.IsAuthenticated}", nameof(AccountViewModel));
+
         var config = _configService.LoadConfig();
         config.JwtToken = token;
         config.UserEmail = email;
         _configService.SaveConfig(config);
 
+        DeskQuit.Services.Logging.AppLogger.Info("About to call LoadTotalStatsAsync synchronously", nameof(AccountViewModel));
+        // Вызываем синхронно, чтобы не было проблем с fire-and-forget
+        var task = LoadTotalStatsAsync();
+        DeskQuit.Services.Logging.AppLogger.Info($"LoadTotalStatsAsync returned task: {(task != null ? "NOT NULL" : "NULL")}", nameof(AccountViewModel));
+        
         _onAuthStateChanged?.Invoke();
+    }
+
+    public async Task RefreshTotalStatsAsync()
+    {
+        if (IsAuthenticated)
+        {
+            DeskQuit.Services.Logging.AppLogger.Info("RefreshTotalStatsAsync called by MainWindow", nameof(AccountViewModel));
+            await LoadTotalStatsAsync();
+        }
+        else
+        {
+            DeskQuit.Services.Logging.AppLogger.Info("RefreshTotalStatsAsync called but not authenticated", nameof(AccountViewModel));
+        }
+    }
+
+    private async Task LoadTotalStatsAsync()
+    {
+        DeskQuit.Services.Logging.AppLogger.Info("LoadTotalStatsAsync started", nameof(AccountViewModel));
+        var stats = await _apiService.GetAllTimeStatsAsync();
+        
+        if (stats != null)
+        {
+            var activeTime = TimeSpan.FromSeconds(stats.ActiveSeconds);
+            var afkTime = TimeSpan.FromSeconds(stats.AfkSeconds);
+            
+            DeskQuit.Services.Logging.AppLogger.Info($"Loaded all-time stats, setting UI: active={activeTime.Hours}h {activeTime.Minutes}m, days={stats.DaysTracked}", nameof(AccountViewModel));
+            
+            TotalActiveTime = $"{activeTime.Hours} ч. {activeTime.Minutes} мин.";
+            TotalAfkTime = $"{afkTime.Hours} ч. {afkTime.Minutes} мин.";
+            TotalNotificationsFiredTotal = stats.NotificationsTotal;
+            TotalNotificationsFiredCustom = stats.NotificationsCustom;
+            TotalDaysTracked = stats.DaysTracked;
+            TotalDateRange = $"{stats.FirstStatDate} - {stats.LastStatDate}";
+        }
+        else
+        {
+            DeskQuit.Services.Logging.AppLogger.Warning("LoadTotalStatsAsync returned null", nameof(AccountViewModel));
+        }
     }
 
     // Методы для синхронизации конфига и напоминаний с сервера
@@ -238,5 +310,8 @@ public partial class AccountViewModel : ViewModelBase
         OnPropertyChanged(nameof(ActiveTimeText));
         OnPropertyChanged(nameof(AfkTimeText));
         OnPropertyChanged(nameof(NotifsFiredText));
+        OnPropertyChanged(nameof(TotalStatsHeader));
+        OnPropertyChanged(nameof(DaysTrackedLabel));
+        OnPropertyChanged(nameof(DateRangeLabel));
     }
 }
