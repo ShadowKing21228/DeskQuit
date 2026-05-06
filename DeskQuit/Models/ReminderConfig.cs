@@ -16,4 +16,13 @@ public class ReminderConfig
     
     [JsonPropertyName("NotificationStyle")]
     public NotificationStyle NotificationStyle { get; set; }
+
+    [JsonPropertyName("IsCustom")]
+    public bool IsCustom { get; set; }
+
+    [JsonPropertyName("CustomTitle")]
+    public string? CustomTitle { get; set; }
+
+    [JsonPropertyName("CustomDescription")]
+    public string? CustomDescription { get; set; }
 }

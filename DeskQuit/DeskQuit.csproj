@@ -7,6 +7,7 @@
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <EnableWindowsTargeting>true</EnableWindowsTargeting>
+        <ApplicationIcon>Assets\deskquit16.ico</ApplicationIcon>
     </PropertyGroup>
 
     <ItemGroup>

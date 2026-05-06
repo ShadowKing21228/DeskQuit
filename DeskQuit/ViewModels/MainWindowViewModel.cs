@@ -1,6 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
+using Avalonia.Data.Core;
 using CommunityToolkit.Mvvm.Input;
 using DeskQuit.Models;
 using DeskQuit.Services;
@@ -17,7 +19,26 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly LocalizationService _localizationService = LocalizationService.Instance;
     private FloatingTimerWindow? _floatingTimerWindow;
 
+    private string _searchQuery = string.Empty;
+    public string SearchQuery
+    {
+        get => _searchQuery;
+        set
+        {
+            if (SetProperty(ref _searchQuery, value))
+            {
+                OnPropertyChanged(nameof(FilteredReminders));
+            }
+        }
+    }
+
     public ObservableCollection<ReminderSettingViewModel> Reminders { get; } = new();
+
+    public System.Collections.Generic.IEnumerable<ReminderSettingViewModel> FilteredReminders => 
+        string.IsNullOrWhiteSpace(SearchQuery) 
+            ? Reminders 
+            : Reminders.Where(r => r.Title.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) || 
+                                 r.Description.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
 
     // Global Settings
     private int _afkThresholdMinutes;
@@ -33,13 +54,67 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
     }
+    
+    private bool _runOnStartup;
+    public bool RunOnStartup
+    {
+        get => _runOnStartup;
+        set
+        {
+            if (SetProperty(ref _runOnStartup, value))
+            {
+                StartupService.SetRunOnStartup(value);
+                SaveConfiguration();
+            }
+        }
+    }
+
+    private double _timerWidth;
+    public double TimerWidth
+    {
+        get => _timerWidth;
+        set
+        {
+            if (SetProperty(ref _timerWidth, value))
+            {
+                if (_floatingTimerWindow != null)
+                {
+                    _floatingTimerWindow.Width = value;
+                }
+                SaveConfiguration();
+            }
+        }
+    }
+
+    private double _timerHeight;
+    public double TimerHeight
+    {
+        get => _timerHeight;
+        set
+        {
+            if (SetProperty(ref _timerHeight, value))
+            {
+                if (_floatingTimerWindow != null)
+                {
+                    _floatingTimerWindow.Height = value;
+                }
+                SaveConfiguration();
+            }
+        }
+    }
 
     // Properties for localized UI strings
     public string RemindersTabHeader => _localizationService["main.tab.reminders"];
     public string SettingsTabHeader => _localizationService["main.tab.settings"];
     public string InfoTabHeader => _localizationService["main.tab.info"];
+    public string TimerTabHeader => _localizationService["main.tab.timer"];
     public string ToggleTimerButtonText => _localizationService["main.reminders.toggle_timer.button"];
     public string AfkThresholdLabel => _localizationService["main.settings.afk_threshold"];
+    public string RunOnStartupLabel => _localizationService["main.settings.run_on_startup"];
+    public string AddCustomReminderButtonText => _localizationService["main.reminders.add_custom.button"];
+    public string SearchWatermarkText => _localizationService["main.reminders.search.watermark"];
+    public string TimerWidthLabel => _localizationService["main.timer.width"];
+    public string TimerHeightLabel => _localizationService["main.timer.height"];
     
     // Info tab content
     public string InfoContent => _localizationService["main.info.content"];
@@ -50,6 +125,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _configService = new ConfigService();
         _localizationService.LanguageChanged += OnLanguageChanged;
         
+        Reminders.CollectionChanged += (_, _) => OnPropertyChanged(nameof(FilteredReminders));
+
         InitializeData();
     }
 
@@ -64,6 +141,20 @@ public partial class MainWindowViewModel : ViewModelBase
         _afkThresholdMinutes = globalConfig.AfkThresholdMinutes > 0 ? globalConfig.AfkThresholdMinutes : 1;
         _notificationService.SetAfkThreshold(TimeSpan.FromMinutes(_afkThresholdMinutes));
         OnPropertyChanged(nameof(AfkThresholdMinutes));
+
+        _runOnStartup = StartupService.GetRunOnStartup();
+        // Sync config with OS settings just in case
+        if (_runOnStartup != globalConfig.RunOnStartup)
+        {
+            globalConfig.RunOnStartup = _runOnStartup;
+            _configService.SaveConfig(globalConfig);
+        }
+        OnPropertyChanged(nameof(RunOnStartup));
+
+        _timerWidth = globalConfig.TimerWidth > 0 ? globalConfig.TimerWidth : 180;
+        OnPropertyChanged(nameof(TimerWidth));
+        _timerHeight = globalConfig.TimerHeight > 0 ? globalConfig.TimerHeight : 60;
+        OnPropertyChanged(nameof(TimerHeight));
 
         var savedConfigs = globalConfig.Reminders;
 
@@ -107,14 +198,87 @@ public partial class MainWindowViewModel : ViewModelBase
         Reminders.Add(neckReminder);
         Reminders.Add(backReminder);
 
+        foreach (var savedConfig in savedConfigs.Where(c => c.IsCustom))
+        {
+            var customVm = new ReminderSettingViewModel(
+                id: savedConfig.Id,
+                title: savedConfig.CustomTitle ?? "",
+                description: savedConfig.CustomDescription ?? "",
+                source: "",
+                isEnabled: savedConfig.IsEnabled,
+                intervalInMinutes: savedConfig.IntervalInMinutes,
+                notificationTitleKey: "",
+                notificationBodyKey: "",
+                style: savedConfig.NotificationStyle,
+                isCustom: true,
+                titleWatermark: _localizationService["main.reminders.custom.default_title"],
+                descriptionWatermark: _localizationService["main.reminders.custom.default_description"]
+            );
+            Reminders.Add(customVm);
+        }
+
         foreach (var reminder in Reminders)
         {
-            reminder.PropertyChanged += (_, e) => OnReminderChanged(reminder, e.PropertyName);
+            reminder.PropertyChanged += OnReminderPropertyChanged;
+            reminder.DeleteRequested += OnReminderDeleted;
             if (reminder.IsEnabled)
             {
                 _notificationService.AddTask(CreateTaskFromVm(reminder));
             }
         }
+    }
+
+    private void OnReminderPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is ReminderSettingViewModel reminder)
+        {
+            OnReminderChanged(reminder, e.PropertyName);
+            if (e.PropertyName == nameof(ReminderSettingViewModel.Title) || e.PropertyName == nameof(ReminderSettingViewModel.Description))
+            {
+                OnPropertyChanged(nameof(FilteredReminders));
+            }
+        }
+    }
+
+    private void OnReminderDeleted(ReminderSettingViewModel reminder)
+    {
+        Reminders.Remove(reminder);
+        reminder.PropertyChanged -= OnReminderPropertyChanged;
+        reminder.DeleteRequested -= OnReminderDeleted;
+
+        var existingTask = _notificationService.FindTask(reminder.Id);
+        if (existingTask != null)
+        {
+            _notificationService.RemoveTask(existingTask);
+        }
+
+        SaveConfiguration();
+    }
+
+    [RelayCommand]
+    private void AddCustomReminder()
+    {
+        var customVm = new ReminderSettingViewModel(
+            id: Guid.NewGuid().ToString(),
+            title: "",
+            description: "",
+            source: "",
+            isEnabled: true,
+            intervalInMinutes: 30,
+            notificationTitleKey: "",
+            notificationBodyKey: "",
+            style: NotificationStyle.SoftPersistentTelegram,
+            isCustom: true,
+            isEditing: true,
+            titleWatermark: _localizationService["main.reminders.custom.default_title"],
+            descriptionWatermark: _localizationService["main.reminders.custom.default_description"]
+        );
+
+        customVm.PropertyChanged += OnReminderPropertyChanged;
+        customVm.DeleteRequested += OnReminderDeleted;
+        Reminders.Add(customVm);
+        _notificationService.AddTask(CreateTaskFromVm(customVm));
+        SaveConfiguration();
     }
 
     private ReminderSettingViewModel CreateReminderVM(
@@ -139,7 +303,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OnReminderChanged(ReminderSettingViewModel reminder, string? propertyName)
     {
-        var existingTask = _notificationService.FindTask(reminder.NotificationTitleKey);
+        var existingTask = _notificationService.FindTask(reminder.Id);
 
         switch (propertyName)
         {
@@ -178,6 +342,17 @@ public partial class MainWindowViewModel : ViewModelBase
                 SaveConfiguration();
                 break;
             }
+            case nameof(ReminderSettingViewModel.Title):
+            case nameof(ReminderSettingViewModel.Description):
+            {
+                if (existingTask != null)
+                {
+                    existingTask.Title = reminder.Title;
+                    existingTask.Text = reminder.Description;
+                }
+                SaveConfiguration();
+                break;
+            }
         }
     }
 
@@ -186,12 +361,18 @@ public partial class MainWindowViewModel : ViewModelBase
         var config = new GlobalConfig
         {
             AfkThresholdMinutes = this.AfkThresholdMinutes,
+            TimerWidth = this.TimerWidth,
+            TimerHeight = this.TimerHeight,
+            RunOnStartup = this.RunOnStartup,
             Reminders = Reminders.Select(r => new ReminderConfig
             {
                 Id = r.Id,
                 IsEnabled = r.IsEnabled,
                 IntervalInMinutes = r.IntervalInMinutes,
-                NotificationStyle = r.StyleValue
+                NotificationStyle = r.StyleValue,
+                IsCustom = r.IsCustom,
+                CustomTitle = r.IsCustom ? r.Title : null,
+                CustomDescription = r.IsCustom ? r.Description : null
             }).ToList()
         };
         
@@ -201,12 +382,13 @@ public partial class MainWindowViewModel : ViewModelBase
     private NotificationTask CreateTaskFromVm(ReminderSettingViewModel vm)
     {
         return new NotificationTask(
-            title: "", // Title and Body are now resolved via keys
-            text: "",
+            id: vm.Id,
+            title: vm.IsCustom ? vm.Title : "",
+            text: vm.IsCustom ? vm.Description : "",
             interval: TimeSpan.FromMinutes(vm.IntervalInMinutes),
             style: vm.StyleValue,
-            titleKey: vm.NotificationTitleKey,
-            textKey: vm.NotificationBodyKey
+            titleKey: vm.IsCustom ? null : vm.NotificationTitleKey,
+            textKey: vm.IsCustom ? null : vm.NotificationBodyKey
         );
     }
 
@@ -217,9 +399,15 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(RemindersTabHeader));
         OnPropertyChanged(nameof(SettingsTabHeader));
         OnPropertyChanged(nameof(InfoTabHeader));
+        OnPropertyChanged(nameof(TimerTabHeader));
         OnPropertyChanged(nameof(ToggleTimerButtonText));
         OnPropertyChanged(nameof(AfkThresholdLabel));
+        OnPropertyChanged(nameof(RunOnStartupLabel));
         OnPropertyChanged(nameof(InfoContent));
+        OnPropertyChanged(nameof(AddCustomReminderButtonText));
+        OnPropertyChanged(nameof(SearchWatermarkText));
+        OnPropertyChanged(nameof(TimerWidthLabel));
+        OnPropertyChanged(nameof(TimerHeightLabel));
     }
 
     private void UpdateLocalizedTexts()
@@ -256,7 +444,9 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             _floatingTimerWindow = new FloatingTimerWindow
             {
-                DataContext = new FloatingTimerViewModel(_notificationService)
+                DataContext = new FloatingTimerViewModel(_notificationService),
+                Width = TimerWidth,
+                Height = TimerHeight
             };
             _floatingTimerWindow.Closed += (_, _) => _floatingTimerWindow = null;
             _floatingTimerWindow.Show();

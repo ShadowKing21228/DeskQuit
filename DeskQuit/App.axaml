@@ -7,7 +7,7 @@
              
     <TrayIcon.Icons>
         <TrayIcons>
-            <TrayIcon Icon="/Assets/avalonia-logo.ico" 
+            <TrayIcon Icon="/Assets/deskquit16.ico" 
                       ToolTipText="DeskQuit — Следим за здоровьем"
                       Clicked="TrayIcon_Clicked">
                 <TrayIcon.Menu>

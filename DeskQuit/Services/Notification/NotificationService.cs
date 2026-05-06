@@ -58,7 +58,7 @@ public class NotificationService
 
     public void AddTask(NotificationTask task)
     {
-        AppLogger.Info($"AddTask. TitleKey={task.TitleKey}", nameof(NotificationService));
+        AppLogger.Info($"AddTask. Id={task.Id}", nameof(NotificationService));
         if (!task.IsHaveElapsedAction)
             AddDefaultAction(task);
         _tasks.Add(task);
@@ -66,14 +66,14 @@ public class NotificationService
     
     public void RemoveTask(NotificationTask task)
     {
-        AppLogger.Info($"RemoveTask. TitleKey={task.TitleKey}", nameof(NotificationService));
+        AppLogger.Info($"RemoveTask. Id={task.Id}", nameof(NotificationService));
         _tasks.Remove(task);
     }
 
-    public NotificationTask? FindTask(string? titleKey)
+    public NotificationTask? FindTask(string id)
     {
-        if (string.IsNullOrEmpty(titleKey)) return null;
-        return _tasks.FirstOrDefault(t => t.TitleKey == titleKey);
+        if (string.IsNullOrEmpty(id)) return null;
+        return _tasks.FirstOrDefault(t => t.Id == id);
     }
 
     public void ClearTasks()

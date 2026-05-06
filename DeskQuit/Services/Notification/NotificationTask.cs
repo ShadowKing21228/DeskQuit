@@ -4,6 +4,7 @@ using DeskQuit.Services.Localization;
 namespace DeskQuit.Services.Notification;
 
 public class NotificationTask(
+    string id,
     string title,
     string text,
     TimeSpan interval,
@@ -11,6 +12,8 @@ public class NotificationTask(
     string? titleKey = null,
     string? textKey = null)
 {
+    public string Id { get; } = id;
+
     public string Title { get; set; } = title; // Заголовок (что сделать)
     
     public string Text { get; set; } = text;

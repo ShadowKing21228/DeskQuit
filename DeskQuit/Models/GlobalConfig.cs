@@ -10,4 +10,13 @@ public class GlobalConfig
 
     [JsonPropertyName("Reminders")]
     public List<ReminderConfig> Reminders { get; set; } = new();
+
+    [JsonPropertyName("TimerWidth")]
+    public double TimerWidth { get; set; } = 180;
+
+    [JsonPropertyName("TimerHeight")]
+    public double TimerHeight { get; set; } = 60;
+
+    [JsonPropertyName("RunOnStartup")]
+    public bool RunOnStartup { get; set; } = false;
 }

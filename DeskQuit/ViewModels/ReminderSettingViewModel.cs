@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using DeskQuit.Models;
 using DeskQuit.Services.Localization;
 using DeskQuit.Services.Notification;
@@ -32,6 +33,16 @@ public partial class ReminderSettingViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isIntervalDefault = true;
 
+    [ObservableProperty]
+    private bool _isCustom;
+
+    [ObservableProperty]
+    private bool _isEditing;
+
+    public bool IsNotEditing => !IsEditing;
+
+    public bool ShowIntervalWarning => !IsCustom && !IsIntervalDefault;
+
     // Внутреннее свойство стиля для связи с моделями
     public NotificationStyle StyleValue { get; private set; }
 
@@ -42,8 +53,13 @@ public partial class ReminderSettingViewModel : ViewModelBase
     public int DefaultIntervalInMinutes { get; }
     public string NotificationTitleKey { get; }
     public string NotificationBodyKey { get; }
+    
+    public string TitleWatermark { get; }
+    public string DescriptionWatermark { get; }
 
     public List<NotificationStyleOption> AvailableStyles { get; private set; } = new();
+
+    public event Action<ReminderSettingViewModel>? DeleteRequested;
 
     public ReminderSettingViewModel(
         string id,
@@ -54,7 +70,11 @@ public partial class ReminderSettingViewModel : ViewModelBase
         int intervalInMinutes,
         string notificationTitleKey,
         string notificationBodyKey,
-        NotificationStyle style)
+        NotificationStyle style,
+        bool isCustom = false,
+        bool isEditing = false,
+        string? titleWatermark = null,
+        string? descriptionWatermark = null)
     {
         Id = id;
         Title = title;
@@ -65,6 +85,10 @@ public partial class ReminderSettingViewModel : ViewModelBase
         DefaultIntervalInMinutes = intervalInMinutes;
         NotificationTitleKey = notificationTitleKey;
         NotificationBodyKey = notificationBodyKey;
+        IsCustom = isCustom;
+        IsEditing = isEditing;
+        TitleWatermark = titleWatermark ?? "";
+        DescriptionWatermark = descriptionWatermark ?? "";
         
         StyleValue = style;
 
@@ -77,12 +101,39 @@ public partial class ReminderSettingViewModel : ViewModelBase
             if (e.PropertyName == nameof(IntervalInMinutes))
             {
                 IsIntervalDefault = (IntervalInMinutes == DefaultIntervalInMinutes);
+                OnPropertyChanged(nameof(ShowIntervalWarning));
             }
             else if (e.PropertyName == nameof(SelectedStyleOption) && SelectedStyleOption != null)
             {
                 StyleValue = SelectedStyleOption.Style;
             }
+            else if (e.PropertyName == nameof(IsEditing))
+            {
+                OnPropertyChanged(nameof(IsNotEditing));
+            }
+            else if (e.PropertyName == nameof(IsCustom))
+            {
+                OnPropertyChanged(nameof(ShowIntervalWarning));
+            }
         };
+    }
+
+    [RelayCommand]
+    private void Delete()
+    {
+        DeleteRequested?.Invoke(this);
+    }
+
+    [RelayCommand]
+    private void Edit()
+    {
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private void Save()
+    {
+        IsEditing = false;
     }
 
     public void UpdateLocalizedStyles()
