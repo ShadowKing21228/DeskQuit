@@ -1,11 +1,36 @@
-bin/
-obj/
-/packages/
-riderModule.iml
+# General
+.DS_Store
+Thumbs.db
+
+# IDE specific
+.idea/
+.vs/
+*.suo
+*.user
+*.sln.docstates
+*.sln.DotSettings.user
 /_ReSharper.Caches/
 
-# Environment files
-.env
+# Build artifacts
+[Bb]in/
+[Oo]bj/
+[Rr]elease/
+[Dd]ebug/
+build/
+Build/
 
-# Local settings
+# NuGet packages
+packages/
+project.lock.json
+project.assets.json
+
+# User Secrets
+secrets.json
+user-secrets/
+
+# Local configuration files
+.env
 appsettings.Local.json
+
+# Rider
+riderModule.iml
