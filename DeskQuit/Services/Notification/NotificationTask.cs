@@ -10,7 +10,8 @@ public class NotificationTask(
     TimeSpan interval,
     NotificationStyle style = NotificationStyle.Default,
     string? titleKey = null,
-    string? textKey = null)
+    string? textKey = null,
+    bool isCustom = false)
 {
     public string Id { get; } = id;
 
@@ -27,6 +28,8 @@ public class NotificationTask(
     public string? TitleKey { get; set; } = titleKey;
     
     public string? TextKey { get; set; } = textKey;
+
+    public bool IsCustom { get; } = isCustom;
 
     public bool IsHaveElapsedAction { get; private set; } = false;
     

@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Data.Core;
 using CommunityToolkit.Mvvm.Input;
 using DeskQuit.Models;
@@ -16,8 +17,11 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly NotificationService _notificationService;
     private readonly ConfigService _configService;
+    private readonly ApiService _apiService;
     private readonly LocalizationService _localizationService = LocalizationService.Instance;
     private FloatingTimerWindow? _floatingTimerWindow;
+
+    public AccountViewModel AccountViewModel { get; }
 
     private string _searchQuery = string.Empty;
     public string SearchQuery
@@ -69,6 +73,20 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private string _serverUrl = string.Empty;
+    public string ServerUrl
+    {
+        get => _serverUrl;
+        set
+        {
+            if (SetProperty(ref _serverUrl, value))
+            {
+                _apiService.UpdateBaseUrl(value);
+                SaveConfiguration();
+            }
+        }
+    }
+
     private double _timerWidth;
     public double TimerWidth
     {
@@ -108,9 +126,11 @@ public partial class MainWindowViewModel : ViewModelBase
     public string SettingsTabHeader => _localizationService["main.tab.settings"];
     public string InfoTabHeader => _localizationService["main.tab.info"];
     public string TimerTabHeader => _localizationService["main.tab.timer"];
+    public string AccountTabHeader => _localizationService["main.tab.account"];
     public string ToggleTimerButtonText => _localizationService["main.reminders.toggle_timer.button"];
     public string AfkThresholdLabel => _localizationService["main.settings.afk_threshold"];
     public string RunOnStartupLabel => _localizationService["main.settings.run_on_startup"];
+    public string ServerUrlLabel => _localizationService["main.settings.server_url"];
     public string AddCustomReminderButtonText => _localizationService["main.reminders.add_custom.button"];
     public string SearchWatermarkText => _localizationService["main.reminders.search.watermark"];
     public string TimerWidthLabel => _localizationService["main.timer.width"];
@@ -119,15 +139,138 @@ public partial class MainWindowViewModel : ViewModelBase
     // Info tab content
     public string InfoContent => _localizationService["main.info.content"];
 
-    public MainWindowViewModel(NotificationService notificationService)
+    public MainWindowViewModel(NotificationService notificationService, ApiService apiService)
     {
         _notificationService = notificationService;
+        _apiService = apiService;
         _configService = new ConfigService();
         _localizationService.LanguageChanged += OnLanguageChanged;
         
+        AccountViewModel = new AccountViewModel(apiService, _configService, _notificationService, OnAuthStateChanged);
+
         Reminders.CollectionChanged += (_, _) => OnPropertyChanged(nameof(FilteredReminders));
 
         InitializeData();
+    }
+
+    private async void OnAuthStateChanged()
+    {
+        // When auth state changes, we should sync config
+        await SyncConfigWithServer();
+    }
+
+    private async Task SyncConfigWithServer()
+    {
+        if (AccountViewModel.IsAuthenticated)
+        {
+            // Fetch config from server
+            var serverConfig = await AccountViewModel.FetchConfigFromServerAsync();
+            if (serverConfig != null)
+            {
+                _afkThresholdMinutes = serverConfig.AfkThresholdMinutes;
+                _timerWidth = serverConfig.TimerWidth;
+                _timerHeight = serverConfig.TimerHeight;
+                _runOnStartup = serverConfig.RunOnStartup;
+                
+                OnPropertyChanged(nameof(AfkThresholdMinutes));
+                OnPropertyChanged(nameof(TimerWidth));
+                OnPropertyChanged(nameof(TimerHeight));
+                OnPropertyChanged(nameof(RunOnStartup));
+                StartupService.SetRunOnStartup(serverConfig.RunOnStartup);
+
+                // Fetch reminders from server
+                var serverReminders = await AccountViewModel.FetchRemindersFromServerAsync();
+                if (serverReminders != null)
+                {
+                    Reminders.Clear();
+                    _notificationService.ClearTasks();
+
+                    // Re-add default reminders
+                    var eyesReminder = CreateReminderVM(
+                        id: "eyes",
+                        titleKey: "main.reminders.eyes.title",
+                        descKey: "main.reminders.eyes.description",
+                        sourceKey: "main.reminders.eyes.source",
+                        defaultInterval: 20,
+                        notifTitleKey: "notification.eyes.title",
+                        notifBodyKey: "notification.eyes.body",
+                        defaultStyle: NotificationStyle.SoftPersistentTelegram,
+                        savedConfigs: serverReminders
+                    );
+                    var neckReminder = CreateReminderVM(
+                        id: "neck",
+                        titleKey: "main.reminders.neck.title",
+                        descKey: "main.reminders.neck.description",
+                        sourceKey: "main.reminders.neck.source",
+                        defaultInterval: 45,
+                        notifTitleKey: "notification.neck.title",
+                        notifBodyKey: "notification.neck.body",
+                        defaultStyle: NotificationStyle.SoftPersistentTelegram,
+                        savedConfigs: serverReminders
+                    );
+                    var backReminder = CreateReminderVM(
+                        id: "back",
+                        titleKey: "main.reminders.back.title",
+                        descKey: "main.reminders.back.description",
+                        sourceKey: "main.reminders.back.source",
+                        defaultInterval: 60,
+                        notifTitleKey: "notification.back.title",
+                        notifBodyKey: "notification.back.body",
+                        defaultStyle: NotificationStyle.AggressiveBlocking,
+                        savedConfigs: serverReminders
+                    );
+                    
+                    Reminders.Add(eyesReminder);
+                    Reminders.Add(neckReminder);
+                    Reminders.Add(backReminder);
+
+                    // Add custom reminders from server
+                    foreach (var savedConfig in serverReminders.Where(c => c.IsCustom))
+                    {
+                        var customVm = new ReminderSettingViewModel(
+                            id: savedConfig.Id,
+                            title: savedConfig.CustomTitle ?? "",
+                            description: savedConfig.CustomDescription ?? "",
+                            source: "",
+                            isEnabled: savedConfig.IsEnabled,
+                            intervalInMinutes: savedConfig.IntervalInMinutes,
+                            notificationTitleKey: "",
+                            notificationBodyKey: "",
+                            style: savedConfig.NotificationStyle,
+                            isCustom: true,
+                            titleWatermark: _localizationService["main.reminders.custom.default_title"],
+                            descriptionWatermark: _localizationService["main.reminders.custom.default_description"]
+                        );
+                        Reminders.Add(customVm);
+                    }
+
+                    foreach (var reminder in Reminders)
+                    {
+                        reminder.PropertyChanged += OnReminderPropertyChanged;
+                        reminder.DeleteRequested += OnReminderDeleted;
+                        if (reminder.IsEnabled)
+                        {
+                            _notificationService.AddTask(CreateTaskFromVm(reminder));
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // If fetching from server fails or doesn't exist, send current local config to server
+                await AccountViewModel.SyncConfigAsync(_configService.LoadConfig());
+                await AccountViewModel.SyncRemindersAsync(Reminders.Select(r => new ReminderConfig
+                {
+                    Id = r.Id,
+                    IsEnabled = r.IsEnabled,
+                    IntervalInMinutes = r.IntervalInMinutes,
+                    NotificationStyle = r.StyleValue,
+                    IsCustom = r.IsCustom,
+                    CustomTitle = r.IsCustom ? r.Title : null,
+                    CustomDescription = r.IsCustom ? r.Description : null
+                }).ToList());
+            }
+        }
     }
 
     private void InitializeData()
@@ -138,6 +281,10 @@ public partial class MainWindowViewModel : ViewModelBase
         // Load saved config
         var globalConfig = _configService.LoadConfig();
         
+        _serverUrl = string.IsNullOrWhiteSpace(globalConfig.ServerUrl) ? "http://localhost:8080/api/" : globalConfig.ServerUrl;
+        _apiService.UpdateBaseUrl(_serverUrl);
+        OnPropertyChanged(nameof(ServerUrl));
+
         _afkThresholdMinutes = globalConfig.AfkThresholdMinutes > 0 ? globalConfig.AfkThresholdMinutes : 1;
         _notificationService.SetAfkThreshold(TimeSpan.FromMinutes(_afkThresholdMinutes));
         OnPropertyChanged(nameof(AfkThresholdMinutes));
@@ -225,6 +372,12 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 _notificationService.AddTask(CreateTaskFromVm(reminder));
             }
+        }
+        
+        // Ensure initial sync attempt if logged in
+        if (AccountViewModel.IsAuthenticated)
+        {
+            _ = SyncConfigWithServer();
         }
     }
 
@@ -364,6 +517,9 @@ public partial class MainWindowViewModel : ViewModelBase
             TimerWidth = this.TimerWidth,
             TimerHeight = this.TimerHeight,
             RunOnStartup = this.RunOnStartup,
+            ServerUrl = this.ServerUrl,
+            JwtToken = _configService.LoadConfig().JwtToken,
+            UserEmail = _configService.LoadConfig().UserEmail,
             Reminders = Reminders.Select(r => new ReminderConfig
             {
                 Id = r.Id,
@@ -377,6 +533,12 @@ public partial class MainWindowViewModel : ViewModelBase
         };
         
         _configService.SaveConfig(config);
+        
+        if (AccountViewModel.IsAuthenticated)
+        {
+            _ = AccountViewModel.SyncConfigAsync(config);
+            _ = AccountViewModel.SyncRemindersAsync(config.Reminders);
+        }
     }
 
     private NotificationTask CreateTaskFromVm(ReminderSettingViewModel vm)
@@ -388,7 +550,8 @@ public partial class MainWindowViewModel : ViewModelBase
             interval: TimeSpan.FromMinutes(vm.IntervalInMinutes),
             style: vm.StyleValue,
             titleKey: vm.IsCustom ? null : vm.NotificationTitleKey,
-            textKey: vm.IsCustom ? null : vm.NotificationBodyKey
+            textKey: vm.IsCustom ? null : vm.NotificationBodyKey,
+            isCustom: vm.IsCustom
         );
     }
 
@@ -400,9 +563,11 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(SettingsTabHeader));
         OnPropertyChanged(nameof(InfoTabHeader));
         OnPropertyChanged(nameof(TimerTabHeader));
+        OnPropertyChanged(nameof(AccountTabHeader));
         OnPropertyChanged(nameof(ToggleTimerButtonText));
         OnPropertyChanged(nameof(AfkThresholdLabel));
         OnPropertyChanged(nameof(RunOnStartupLabel));
+        OnPropertyChanged(nameof(ServerUrlLabel));
         OnPropertyChanged(nameof(InfoContent));
         OnPropertyChanged(nameof(AddCustomReminderButtonText));
         OnPropertyChanged(nameof(SearchWatermarkText));

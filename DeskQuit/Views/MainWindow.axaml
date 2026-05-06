@@ -147,7 +147,75 @@
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
+                            
+                            <!-- Добавлено поле для базового адреса API -->
+                            <Border Background="#1F2937" CornerRadius="8" Padding="15">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="Синхронизация" FontWeight="Bold" FontSize="18" Foreground="White"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding ServerUrlLabel}" VerticalAlignment="Center" Foreground="White"/>
+                                        <TextBox Text="{Binding ServerUrl}" Width="250"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem Header="{Binding AccountTabHeader}">
+                    <ScrollViewer>
+                        <Border Background="#1F2937" CornerRadius="8" Padding="15" Margin="10">
+                            <Grid>
+                                <!-- Стейт: не авторизован -->
+                                <StackPanel IsVisible="{Binding !AccountViewModel.IsAuthenticated}" Spacing="15" MaxWidth="400" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AccountViewModel.AccountHeader}" FontWeight="Bold" FontSize="20" Foreground="White" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding AccountViewModel.NotLoggedInText}" TextWrapping="Wrap" FontSize="14" Foreground="#D1D5DB" TextAlignment="Center" Margin="0,0,0,15"/>
+                                    
+                                    <TextBox Text="{Binding AccountViewModel.EmailInput}" Watermark="{Binding AccountViewModel.EmailWatermark}" MinHeight="40"/>
+                                    <TextBox Text="{Binding AccountViewModel.PasswordInput}" Watermark="{Binding AccountViewModel.PasswordWatermark}" PasswordChar="*" MinHeight="40"/>
+                                    
+                                    <TextBlock Text="{Binding AccountViewModel.ErrorMessage}" Foreground="#EF4444" IsVisible="{Binding AccountViewModel.ErrorMessage.Length, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" HorizontalAlignment="Center"/>
+                                    
+                                    <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                        <Button Content="{Binding AccountViewModel.LoginButtonText}" Command="{Binding AccountViewModel.LoginCommand}" Background="#3B82F6" Foreground="White" Padding="20,10" CornerRadius="8" IsEnabled="{Binding !AccountViewModel.IsLoading}"/>
+                                        <Button Content="{Binding AccountViewModel.RegisterButtonText}" Command="{Binding AccountViewModel.RegisterCommand}" Background="#10B981" Foreground="White" Padding="20,10" CornerRadius="8" IsEnabled="{Binding !AccountViewModel.IsLoading}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- Стейт: авторизован -->
+                                <StackPanel IsVisible="{Binding AccountViewModel.IsAuthenticated}" Spacing="20">
+                                    <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,10">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                            <TextBlock Text="👤" FontSize="24" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding AccountViewModel.CurrentUserEmail}" FontWeight="Bold" FontSize="18" Foreground="White" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="{Binding AccountViewModel.LogoutButtonText}" Command="{Binding AccountViewModel.LogoutCommand}" Background="#EF4444" Foreground="White" Padding="15,8" CornerRadius="8"/>
+                                    </Grid>
+
+                                    <Border Background="#374151" CornerRadius="8" Padding="15">
+                                        <StackPanel Spacing="15">
+                                            <TextBlock Text="{Binding AccountViewModel.StatsHeader}" FontWeight="Bold" FontSize="16" Foreground="White" Margin="0,0,0,5"/>
+                                            
+                                            <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto" Margin="0,5">
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding AccountViewModel.ActiveTimeText}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AccountViewModel.CurrentSessionActiveTime}" FontWeight="SemiBold" Foreground="White" FontSize="15" Margin="0,0,0,10"/>
+                                                
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding AccountViewModel.AfkTimeText}" Foreground="#D1D5DB" FontSize="15" Margin="0,0,0,10"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding AccountViewModel.CurrentSessionAfkTime}" FontWeight="SemiBold" Foreground="White" FontSize="15" Margin="0,0,0,10"/>
+
+                                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding AccountViewModel.NotifsFiredText}" Foreground="#D1D5DB" FontSize="15"/>
+                                                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding AccountViewModel.CurrentSessionNotificationsFiredTotal}" FontWeight="SemiBold" Foreground="White" FontSize="15"/>
+                                                    <TextBlock Text=" (" Foreground="#D1D5DB" FontSize="15"/>
+                                                    <TextBlock Text="{Binding AccountViewModel.CurrentSessionNotificationsFiredCustom}" FontWeight="SemiBold" Foreground="White" FontSize="15"/>
+                                                    <TextBlock Text=" custom)" Foreground="#D1D5DB" FontSize="15"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
                     </ScrollViewer>
                 </TabItem>
                 

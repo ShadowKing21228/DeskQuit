@@ -19,4 +19,14 @@ public class GlobalConfig
 
     [JsonPropertyName("RunOnStartup")]
     public bool RunOnStartup { get; set; } = false;
+
+    [JsonPropertyName("ServerUrl")]
+    public string ServerUrl { get; set; } = "http://localhost:8080/api/";
+
+    // Authentication info
+    [JsonPropertyName("JwtToken")]
+    public string? JwtToken { get; set; }
+
+    [JsonPropertyName("UserEmail")]
+    public string? UserEmail { get; set; }
 }

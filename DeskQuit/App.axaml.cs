@@ -6,6 +6,7 @@ using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using DeskQuit.Services;
 using DeskQuit.Services.Localization;
 using DeskQuit.Services.Logging;
 using DeskQuit.Services.Notification;
@@ -17,8 +18,10 @@ namespace DeskQuit;
 public partial class App : Application
 {
     private readonly LocalizationService _localizationService = LocalizationService.Instance;
-    private NotificationService _notificationService = new(); 
-    
+    private NotificationService? _notificationService;
+    private ApiService? _apiService;
+    private MainWindowViewModel? _mainWindowViewModel;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -26,28 +29,42 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
-            // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
             
             AppLogger.Configure();
+            
+            _notificationService = new NotificationService();
+            _apiService = new ApiService();
             
             _localizationService.SetLanguage(_localizationService.DetectSystemLanguage());
             _localizationService.LanguageChanged += _ => ApplyLocalizationToTrayMenu();
             _notificationService.Initialize();
             
+            _mainWindowViewModel = new MainWindowViewModel(_notificationService, _apiService);
+
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(_notificationService),
+                DataContext = _mainWindowViewModel,
             };
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             ApplyLocalizationToTrayMenu();
+
+            desktop.ShutdownRequested += OnShutdownRequested;
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private async void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
+    {
+        if (_notificationService != null && _apiService != null && _mainWindowViewModel != null && _mainWindowViewModel.AccountViewModel.IsAuthenticated)
+        {
+            var (activeSeconds, afkSeconds, notifsTotal, notifsCustom) = _notificationService.GetAndResetStats();
+            var dateStr = DateTime.Today.ToString("yyyy-MM-dd");
+            await _apiService.SendDailyStatsAsync(dateStr, activeSeconds, afkSeconds, notifsTotal, notifsCustom);
+        }
     }
 
     private void DisableAvaloniaDataAnnotationValidation()
@@ -62,6 +79,7 @@ public partial class App : Application
             BindingPlugins.DataValidators.Remove(plugin);
         }
     }
+
     private void MenuOpen_Click(object? sender, EventArgs e)
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -103,7 +121,6 @@ public partial class App : Application
             desktop.MainWindow.Show();
             desktop.MainWindow.Activate();
         }
-        
     }
 
     private void ApplyLocalizationToTrayMenu()

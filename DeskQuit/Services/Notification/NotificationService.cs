@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using DesktopNotifications;
 using DesktopNotifications.FreeDesktop;
 using DesktopNotifications.Windows;
+using DeskQuit.Models;
 using DeskQuit.Services.Localization;
 using DeskQuit.Services.Logging;
 using DeskQuit.Views.Notifications;
@@ -16,22 +17,24 @@ namespace DeskQuit.Services.Notification;
 public class NotificationService
 {
     private readonly DispatcherTimer _heartbeat;
-    
     private readonly List<NotificationTask> _tasks = [];
-    
     private readonly LocalizationService _localizationService = LocalizationService.Instance;
     
     private bool _softNotificationVisible;
-    
     private bool _aggressiveNotificationVisible;
-    
     private INotificationManager? _manager;
-    
     private TimeSpan _idleThreshold = TimeSpan.FromMinutes(1);
-    
+
+    // Статистика
     public TimeSpan TotalWorkTime { get; private set; } = TimeSpan.Zero;
-    
+    public TimeSpan TotalAfkTime { get; private set; } = TimeSpan.Zero;
+    public int NotificationsFiredTotal { get; private set; }
+    public int NotificationsFiredCustom { get; private set; }
+
+    // События для обновления UI
     public event Action<TimeSpan>? TotalTimeChanged;
+    public event Action<TimeSpan>? AfkTimeChanged;
+    public event Action? StatsChanged;
 
     public NotificationService()
     {
@@ -87,9 +90,15 @@ public class NotificationService
     private void OnHeartbeat(object? sender, EventArgs e)
     {
         var idleTime = UserActivityService.GetIdleTime();
-        if (idleTime > _idleThreshold) return;
-
         var second = TimeSpan.FromSeconds(1);
+
+        if (idleTime > _idleThreshold)
+        {
+            TotalAfkTime += second;
+            AfkTimeChanged?.Invoke(TotalAfkTime);
+            return;
+        }
+
         TotalWorkTime += second;
         TotalTimeChanged?.Invoke(TotalWorkTime);
 
@@ -109,6 +118,13 @@ public class NotificationService
 
     private Task SendNotificationByStyle(NotificationTask task)
     {
+        NotificationsFiredTotal++;
+        if (task.IsCustom)
+        {
+            NotificationsFiredCustom++;
+        }
+        StatsChanged?.Invoke();
+
         var title = task.ResolveTitle(_localizationService);
         var body = task.ResolveText(_localizationService);
 
@@ -154,5 +170,22 @@ public class NotificationService
             window.Closed += (_, _) => _aggressiveNotificationVisible = false;
             window.Show();
         });
+    }
+
+    public (long activeSeconds, long afkSeconds, int notifsTotal, int notifsCustom) GetAndResetStats()
+    {
+        var stats = ((long)TotalWorkTime.TotalSeconds, (long)TotalAfkTime.TotalSeconds, NotificationsFiredTotal, NotificationsFiredCustom);
+        
+        TotalWorkTime = TimeSpan.Zero;
+        TotalAfkTime = TimeSpan.Zero;
+        NotificationsFiredTotal = 0;
+        NotificationsFiredCustom = 0;
+        
+        // Notify UI to reset
+        TotalTimeChanged?.Invoke(TotalWorkTime);
+        AfkTimeChanged?.Invoke(TotalAfkTime);
+        StatsChanged?.Invoke();
+        
+        return stats;
     }
 }
