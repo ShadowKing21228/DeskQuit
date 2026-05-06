@@ -33,16 +33,16 @@ jobs:
       shell: pwsh
 
     - name: Publish App (Windows)
-        run: |
-          dotnet publish ${{ env.PROJECT_PATH }} `
-            -c Release `
-            -r win-x64 `
-            -f net8.0-windows10.0.17763.0 `
-            --self-contained true `
-            -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
-            -p:PublishTrimmed=false `
-            -o publish_output
+      run: |
+        dotnet publish ${{ env.PROJECT_PATH }} `
+          -c Release `
+          -r win-x64 `
+          -f net8.0-windows10.0.17763.0 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:PublishTrimmed=false `
+          -o publish_output
 
     - name: Create ZIP Archive
       run: |
